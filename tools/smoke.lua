@@ -1354,22 +1354,33 @@ do
 		return false
 	end
 	WOWSTUB.Tick(0.3)
-	check(ns.Tracker.attached == "below" and anchoredTo(ObjectiveTrackerFrame.NineSlice), "tracker section sits under the quests: " .. tostring(ns.Tracker.attached))
-	check(f:GetWidth() == 280, "same width as the objective tracker")
-	ObjectiveTrackerFrame.isCollapsed = true
-	for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
-	check(ns.Tracker.attached == "header" and anchoredTo(ObjectiveTrackerFrame.Header), "under the header when All Objectives is collapsed")
-	ObjectiveTrackerFrame.isCollapsed = nil
-	ObjectiveTrackerFrame._shown = false
-	for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
-	check(ns.Tracker.attached == "replace", "takes the tracker's place when it's empty")
-	ObjectiveTrackerFrame._shown = true
-	ns.db.settings.trackerPoint = { "CENTER", "CENTER", 10, 10 }
-	for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
-	check(ns.Tracker.attached == "custom", "a dragged position is kept")
-	ns.db.settings.trackerPoint = nil
-	for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
-	check(ns.Tracker.attached == "below", "reset reattaches it")
+	if WOWSTUB.flavor == "classic_era" then
+		-- No objective tracker to follow: a spot of its own on the screen, until dragged.
+		check(ns.Tracker.attached == "screen" and anchoredTo(UIParent), "Classic Era: tracker section stands on its own: " .. tostring(ns.Tracker.attached))
+		ns.db.settings.trackerPoint = { "CENTER", "CENTER", 10, 10 }
+		for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
+		check(ns.Tracker.attached == "custom", "Classic Era: a dragged position is kept")
+		ns.db.settings.trackerPoint = nil
+		for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
+		check(ns.Tracker.attached == "screen", "Classic Era: reset puts it back")
+	else
+		check(ns.Tracker.attached == "below" and anchoredTo(ObjectiveTrackerFrame.NineSlice), "tracker section sits under the quests: " .. tostring(ns.Tracker.attached))
+		check(f:GetWidth() == 280, "same width as the objective tracker")
+		ObjectiveTrackerFrame.isCollapsed = true
+		for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
+		check(ns.Tracker.attached == "header" and anchoredTo(ObjectiveTrackerFrame.Header), "under the header when All Objectives is collapsed")
+		ObjectiveTrackerFrame.isCollapsed = nil
+		ObjectiveTrackerFrame._shown = false
+		for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
+		check(ns.Tracker.attached == "replace", "takes the tracker's place when it's empty")
+		ObjectiveTrackerFrame._shown = true
+		ns.db.settings.trackerPoint = { "CENTER", "CENTER", 10, 10 }
+		for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
+		check(ns.Tracker.attached == "custom", "a dragged position is kept")
+		ns.db.settings.trackerPoint = nil
+		for _, t in ipairs(WOWSTUB.tickers) do t.fn() end
+		check(ns.Tracker.attached == "below", "reset reattaches it")
+	end
 
 	-- A link that goes stale on its own clock, with no update arriving to say so, still
 	-- reaches the tracker: the once-a-second tick notices the state changed.

@@ -7,6 +7,17 @@ dofile("tools/bitstub.lua") -- the client's `bit` library (LuaJIT has its own)
 local Stub = { frames = {}, events = {}, tickers = {}, sounds = {}, loaded = {}, printed = {}, slotData = {} }
 _G.WOWSTUB = Stub
 
+-- The client to stand in for: "forever" (the default), or "classic_era"
+-- (T3_STUB_FLAVOR=classic_era), which lacks some of Forever's templates, events and
+-- fonts and errors on them as the Classic Era client does.
+Stub.flavor = os.getenv("T3_STUB_FLAVOR") or "forever"
+local CLASSIC_ERA = Stub.flavor == "classic_era"
+local MISSING = CLASSIC_ERA and {
+	templates = { LargeSideTabButtonTemplate = true, ObjectiveTrackerModuleHeaderTemplate = true },
+	events = { INPUT_DEVICE_INTERFACE_TRANSITION = true },
+	fonts = { Game15Font_Shadow = true, ObjectiveTrackerHeaderFont = true, ObjectiveTrackerLineFont = true },
+} or { templates = {}, events = {}, fonts = {} }
+
 local function noop() end
 
 -- A ScrollingEditBox's inner EditBox shows its owner's text.
@@ -125,9 +136,14 @@ local SETTERS = {
 	Enable = function(self) self._enabled = true end,
 	Disable = function(self) self._enabled = false end,
 	SetEnabled = function(self, e) self._enabled = e and true or false end,
-	RegisterEvent = function(self, e) Stub.events[e] = Stub.events[e] or {} Stub.events[e][self] = true end,
+	RegisterEvent = function(self, e)
+		if MISSING.events[e] then error('Attempt to register unknown event "' .. e .. '"', 2) end
+		Stub.events[e] = Stub.events[e] or {}
+		Stub.events[e][self] = true
+	end,
 	CreateTexture = function(self) return addRegion(self, Stub.NewFrame("Texture", self)) end,
 	CreateFontString = function(self, _, _, font)
+		if font and MISSING.fonts[font] then error("Couldn't find inherited node \"" .. font .. "\"", 2) end
 		local fs = addRegion(self, Stub.NewFrame("FontString", self))
 		fs._fontObject = font
 		return fs
@@ -243,6 +259,7 @@ function Stub.NewFrame(kind, parent, name, template)
 	-- Frames start shown in WoW unless hidden; track only explicit Show/Hide for OnShow.
 	f._shown = nil
 	for tmpl in tostring(template or ""):gmatch("[^,%s]+") do
+		if MISSING.templates[tmpl] then error("Couldn't find inherited node \"" .. tmpl .. "\"", 3) end
 		for _, child in ipairs(TEMPLATE_CHILDREN[tmpl] or {}) do f[child] = Stub.NewFrame("Frame", f) end
 	end
 	if template == "ButtonFrameTemplate" then
@@ -342,7 +359,7 @@ _G.C_AddOns = {
 		local n = tonumber(name:match("T3Code_S(%d+)"))
 		return n ~= nil and n <= Stub.slotCount
 	end,
-	IsAddOnLoaded = function(name) return Stub.loadedSlots[name] or name == "Blizzard_ObjectiveTracker" end,
+	IsAddOnLoaded = function(name) return Stub.loadedSlots[name] or (name == "Blizzard_ObjectiveTracker" and not CLASSIC_ERA) end,
 	LoadAddOn = function(name)
 		Stub.loadedSlots[name] = true
 		local n = tonumber(name:match("T3Code_S(%d+)"))
@@ -377,13 +394,18 @@ _G.Settings = {
 	RegisterCanvasLayoutCategory = function() return {} end,
 	RegisterAddOnCategory = noop,
 }
-_G.ObjectiveTrackerModuleHeaderMixin = {}
-_G.ObjectiveTrackerFrame = Stub.NewFrame("Frame", _G.UIParent, "ObjectiveTrackerFrame")
-ObjectiveTrackerFrame._shown, ObjectiveTrackerFrame._w = true, 280
-ObjectiveTrackerFrame.Header = Stub.NewFrame("Frame", ObjectiveTrackerFrame)
-ObjectiveTrackerFrame.NineSlice = Stub.NewFrame("Frame", ObjectiveTrackerFrame)
-ObjectiveTrackerFrame.NineSlice._shown = true
-function ObjectiveTrackerFrame:IsCollapsed() return self.isCollapsed end
+-- Classic Era has no objective tracker of this kind (and none of the fonts above).
+if not CLASSIC_ERA then
+	_G.ObjectiveTrackerModuleHeaderMixin = {}
+	_G.ObjectiveTrackerFrame = Stub.NewFrame("Frame", _G.UIParent, "ObjectiveTrackerFrame")
+	ObjectiveTrackerFrame._shown, ObjectiveTrackerFrame._w = true, 280
+	ObjectiveTrackerFrame.Header = Stub.NewFrame("Frame", ObjectiveTrackerFrame)
+	ObjectiveTrackerFrame.NineSlice = Stub.NewFrame("Frame", ObjectiveTrackerFrame)
+	ObjectiveTrackerFrame.NineSlice._shown = true
+	function ObjectiveTrackerFrame:IsCollapsed() return self.isCollapsed end
+	-- Fonts the addon picks only when the client has them.
+	for font in pairs({ Game15Font_Shadow = true, ObjectiveTrackerHeaderFont = true, ObjectiveTrackerLineFont = true }) do CreateFont(font) end
+end
 _G.InputUtil = { IsGamepadUIEnabled = function() return Stub.gamepad or false end }
 _G.GamepadMode = { FrameControlsManager = { FrameShown = function() Stub.gamepadShown = true end, FrameHidden = function() Stub.gamepadShown = false end } }
 _G.SmartNavigation = { RefreshButtonGroups = noop, SetSmartNavPanelInfoAddedCallback = function(_, f, cb) cb() end, SetScrollFrameForFrame = noop }

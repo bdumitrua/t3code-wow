@@ -45,6 +45,7 @@ cd bridge && npm test                                        # bridge, protocol,
 node tools/snapshot.mjs /tmp/t3snap.lua                      # a real snapshot from your running T3 Code
 lua5.1 tools/smoke.lua addon/T3Code /tmp/t3snap.lua "$(cat /tmp/t3snap.view)"   # drive the addon headlessly
 luajit tools/smoke.lua addon/T3Code /tmp/t3snap.lua "$(cat /tmp/t3snap.view)"   # same, with signed bit ops
+T3_STUB_FLAVOR=classic_era lua5.1 tools/smoke.lua addon/T3Code /tmp/t3snap.lua "$(cat /tmp/t3snap.view)"   # as WoW Classic Era, without Forever's newer templates, events and fonts
 ```
 
 On macOS, Homebrew doesn't package Lua 5.1: `brew install luajit` covers the LuaJIT runs, and the `lua5.1` ones need Lua 5.1 built from source.
