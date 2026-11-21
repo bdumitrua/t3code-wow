@@ -20,7 +20,7 @@ Watch and run your [T3 Code](https://t3.codes) agent threads without leaving the
 ## Requirements
 
 - **Omarchy 4.5.0** (Hyprland), **CachyOS** with KDE Plasma (see [CachyOS and KDE Plasma](#cachyos-and-kde-plasma)), **macOS** (see [macOS](#macos)), or **Windows** 10 or 11 (see [Windows](#windows)). On Omarchy the bridge reads the game window with Hyprland's screen capture, and dictation and usage come from Omarchy's own tools.
-- **T3 Code Nightly**, installed and running. Its `t3` command gives the bridge a login.
+- **T3 Code Nightly**, installed and running. Its `t3` command gives the bridge a login. T3 Code Beta (0.1.x) connects too, but isn't tested beyond that.
 - **World of Warcraft: Forever**, installed with Battle.net: Omarchy's Battle.net (Proton), Battle.net in Faugus Launcher, Lutris or Steam on CachyOS, or the native Mac or Windows app.
 - **Node.js 22** or newer.
 - **Game sound on.** The addon learns about new updates through silent sounds; with sound off it falls back to slower polling.
