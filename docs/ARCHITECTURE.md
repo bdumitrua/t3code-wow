@@ -96,6 +96,15 @@ find it only when their capture starts at the game's corner; a border of a pixel
 little past the inset, so a border or scaling quirk doesn't break it, and a strip an
 older addon draws in the corner itself is found too.
 
+A game that renders below the display's resolution is scaled up by the system, so its
+cells land a fraction of a pixel apart, blended at their edges: Classic Era fullscreen
+on a Mac drew 2560x1600 on a 2880x1800 panel, 3.375 pixels per cell with the inset at
+about 10. When no whole-pixel size reads, the bridge tries spacings from 2 to 8 in
+sixteenths of a pixel, only at offsets that put the magic's first two cells on matching
+pixels, and takes a candidate only when a whole frame reads: blurred cells can spell the
+magic at a wrong spacing. The capture is sized for cells up to 4 pixels, so a game the
+system scales up by more than a third doesn't fit.
+
 The payload is records separated by `RS` (0x1E), with fields separated by `US` (0x1F):
 
 ```

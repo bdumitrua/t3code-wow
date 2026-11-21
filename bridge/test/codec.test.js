@@ -81,6 +81,87 @@ test('decodes squares that drift off whole pixels', () => {
   assert.equal(out.payload.toString('utf8'), payload);
 });
 
+// A strip as the system draws it after scaling the game by a fraction: squares `pitch`
+// pixels apart, `inset` in from the corner, each pixel averaging the cells under its
+// four quarters, as scaling blurs them. `background` fills the rest.
+function scaledStrip(cells, { pitch, inset, width = 672, height = 272, background = () => [60, 60, 60] }) {
+  const data = Buffer.alloc(width * height * 3);
+  const cellAt = (x, y) => {
+    const col = Math.floor((x - inset) / pitch);
+    const k = col + Math.floor((y - inset) / pitch) * 160;
+    return x < inset || y < inset || col >= 160 || k >= cells.length ? -1 : cells[k];
+  };
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 3;
+      const bg = background(x, y);
+      for (let c = 0; c < 3; c++) {
+        let sum = 0;
+        for (const [dx, dy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) {
+          const v = cellAt(x + dx, y + dy);
+          sum += v < 0 ? bg[c] : v & (4 >> c) ? 255 : 0;
+        }
+        data[i + c] = Math.round(sum / 4);
+      }
+    }
+  }
+  return { width, height, data };
+}
+
+test('decodes a strip the system scaled up by a fraction (Classic Era fullscreen on a Mac)', () => {
+  // The game draws 2560x1600 on a 2880x1800 panel: 3px squares become 3.375px, and the
+  // 9px inset becomes about 10.
+  const payload = 'x'.repeat(400);
+  const pitch = 3.375;
+  const out = decodeImage(scaledStrip(encodeFrame(119, payload), { pitch, inset: 10 }), null, { searchY: 80 });
+  assert.ok(out && !out.error, out?.error);
+  assert.equal(out.payload.toString('utf8'), payload);
+  assert.ok(Math.abs(out.geo.pitch - pitch) < 0.02, `pitch ${out.geo.pitch}`);
+});
+
+test('decodes strips scaled by other fractions, down as well as up', () => {
+  // Up to 4px squares: the capture is sized for those (StripCapture.stripPixels).
+  for (const scale of [0.75, 0.875, 1.25]) {
+    const pitch = 3 * scale;
+    const payload = `scaled ${scale} `.repeat(30);
+    const out = decodeImage(scaledStrip(encodeFrame(7, payload), { pitch, inset: Math.round(9 * scale) }), null, { searchY: 80 });
+    assert.ok(out && !out.error, `${scale}: ${out?.error}`);
+    assert.equal(out.payload.toString('utf8'), payload, `scale ${scale}`);
+  }
+});
+
+test('a fractional spacing found once reads the next frame from the hint', () => {
+  const opts = { pitch: 3.375, inset: 10 };
+  const first = decodeImage(scaledStrip(encodeFrame(1, 'first'), opts), null, { searchY: 80 });
+  assert.ok(first && !first.error, first?.error);
+  const next = decodeImage(scaledStrip(encodeFrame(2, 'a longer second frame '.repeat(20)), opts), first.geo, { searchY: 80 });
+  assert.ok(next && !next.error, next?.error);
+  assert.equal(next.seq, 2);
+  // The longer frame pins the spacing down, and the one after reads from that.
+  const third = decodeImage(scaledStrip(encodeFrame(3, 'third'), opts), next.geo, { searchY: 80 });
+  assert.equal(third?.seq, 3);
+  assert.deepEqual(third.geo, next.geo);
+});
+
+test('a damaged strip at a fractional spacing says why instead of reading as no strip', () => {
+  const cells = encodeFrame(3, 'y'.repeat(200));
+  cells[cells.length - 10] ^= 0b111;
+  const out = decodeImage(scaledStrip(cells, { pitch: 3.375, inset: 10 }), null, { searchY: 80 });
+  assert.ok(out?.error, 'expected an error');
+  assert.ok(out.geo);
+});
+
+test('scenery without a strip is not taken for one at any spacing', () => {
+  const rand = (x, y) => (Math.imul(x * 7919 + y * 104729, 2654435761) >>> 24) & 255;
+  const backgrounds = {
+    grass: () => [40, 170, 50], // the magic's first cell everywhere
+    noise: (x, y) => [rand(x, y), rand(y, x + 1), rand(x + 2, y)],
+  };
+  for (const [name, background] of Object.entries(backgrounds)) {
+    assert.equal(decodeImage(scaledStrip([], { pitch: 3, inset: 9, background }), null, { searchY: 80 }), null, name);
+  }
+});
+
 test('max payload fits', () => {
   const payload = 'x'.repeat(MAX_PAYLOAD);
   const cells = encodeFrame(9, payload);
