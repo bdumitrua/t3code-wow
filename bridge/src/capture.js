@@ -118,7 +118,7 @@ async function hyprWindow(pid) {
 // there's nothing to compile), then `screencapture` for the pixels.
 
 // Prints { windows, screens } for windows owned by the pid, or by an app called Wow
-// (the client's process name) or World of Warcraft. Window bounds are in points with
+// (the client's process name), World of Warcraft or World of Warcraft Classic. Window bounds are in points with
 // the origin at the top-left of the main display; screens come from NSScreen, whose
 // origin is bottom-left.
 const MAC_WINDOWS_JXA = `
@@ -133,7 +133,7 @@ function run(argv) {
     const v = (k) => { const x = w.objectForKey(k); return x.isNil() ? null : x.js; };
     const owner = v('kCGWindowOwnerName');
     const wpid = v('kCGWindowOwnerPID');
-    if (wpid !== pid && owner !== 'Wow' && owner !== 'World of Warcraft') continue;
+    if (wpid !== pid && owner !== 'Wow' && owner !== 'World of Warcraft' && owner !== 'World of Warcraft Classic') continue;
     windows.push({ pid: wpid, layer: v('kCGWindowLayer'), onscreen: !!v('kCGWindowIsOnscreen'), bounds: ObjC.deepUnwrap(w.objectForKey('kCGWindowBounds')) });
   }
   const screens = $.NSScreen.screens.js.map((s) => ({ x: s.frame.origin.x, y: s.frame.origin.y, width: s.frame.size.width, height: s.frame.size.height, scale: s.backingScaleFactor }));

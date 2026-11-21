@@ -23,7 +23,7 @@ import { tokenProvider } from './auth.js';
 import { snoozeChoices, snoozedUntil, parseCustomSnooze, describeWhen } from './snooze.js';
 import { Voice } from './voice.js';
 import { OmarchyUsage, mergeUsage } from './usage.js';
-import { findWowProcess, processKey } from './wow.js';
+import { findWowProcess, processKey, flavorOf, FLAVORS } from './wow.js';
 import { markdownToWow, markdownToSpeech, firstLine, escapeWow } from './format.js';
 import { loadOrCreateKey, deriveKeys, open as openSealed, ENCRYPTED_VERSION } from './strip-crypto.js';
 
@@ -330,7 +330,8 @@ export class Bridge {
       log(line);
     };
     this.logs = [];
-    this.bank = new SlotBank(addonsDir, { slots: config.slots || 1200 });
+    this.flavor = flavorOf(config.wowDir);
+    this.bank = new SlotBank(addonsDir, { slots: config.slots || 1200, interface: FLAVORS[this.flavor]?.interface });
     const installed = this.bank.installedSlotCount();
     if (installed > 0) this.bank.slots = installed;
     this.capture = new StripCapture({ log: this.log, backend: config.capture?.backend || 'auto', region: config.capture?.region || null });
@@ -430,7 +431,7 @@ export class Bridge {
   }
 
   checkProcess() {
-    this.checkInFlight ??= findWowProcess()
+    this.checkInFlight ??= findWowProcess(this.flavor)
       .then((proc) => this.onProcess(proc))
       .finally(() => {
         this.checkInFlight = null;

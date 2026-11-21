@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// t3code-wow: install and run the T3 Code bridge for World of Warcraft: Forever.
+// t3code-wow: install and run the T3 Code bridge for World of Warcraft: Forever or Classic Era.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -8,7 +8,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Bridge, STATE_DIR, VERSION } from '../src/bridge.js';
 import { CONFIG_DIR, mintToken, readToken, tokenClaims, findT3Cli, t3Command } from '../src/auth.js';
-import { findWowInstalls, addonsDir as addonsDirOf, findWowProcess } from '../src/wow.js';
+import { findWowInstalls, addonsDir as addonsDirOf, findWowProcess, flavorOf, FLAVORS } from '../src/wow.js';
 import { SlotBank, ADDON, CTL_LONG } from '../src/slots.js';
 import { StripCapture, SCREEN_PERMISSION_HELP } from '../src/capture.js';
 import { decodeImage } from '../src/codec.js';
@@ -78,16 +78,16 @@ function copyDir(src, dst) {
 function resolveWowDir(args, cfg) {
   if (args.wow) {
     const dir = path.resolve(String(args.wow));
-    if (fs.existsSync(path.join(dir, '_forever_'))) return path.join(dir, '_forever_');
+    for (const flavor of Object.keys(FLAVORS)) if (fs.existsSync(path.join(dir, flavor))) return path.join(dir, flavor);
     return dir;
   }
   if (cfg.wowDir && fs.existsSync(cfg.wowDir)) return cfg.wowDir;
-  const { forever, wowOnly, prefixes } = findWowInstalls();
-  if (forever.length > 1) console.log(C.y(`Found several WoW: Forever installs, using the first (pick one with --wow):\n  ${forever.join('\n  ')}`));
-  if (forever.length) return forever[0];
+  const { gameDirs, wowOnly, prefixes } = findWowInstalls();
+  if (gameDirs.length > 1) console.log(C.y(`Found several supported WoW installs, using the first (pick one with --wow, such as --wow "${gameDirs[gameDirs.length - 1]}"):\n  ${gameDirs.join('\n  ')}`));
+  if (gameDirs.length) return gameDirs[0];
   const where = '\nIf it\'s somewhere else, pass --wow "/path/to/World of Warcraft".';
   if (wowOnly.length) {
-    throw new Error(`found World of Warcraft at ${wowOnly[0]}, but not WoW: Forever. Install Forever from Battle.net (it's a separate game version), launch it once, then ${RERUN}.${where}`);
+    throw new Error(`found World of Warcraft at ${wowOnly[0]}, but not WoW: Forever or Classic Era. Install one of them from Battle.net (each is a separate game version), launch it once, then ${RERUN}.${where}`);
   }
   if (prefixes.length) {
     throw new Error(`found Battle.net (${prefixes[0]}) but no World of Warcraft. Install WoW: Forever from Battle.net, launch it once, then ${RERUN}.${where}`);
@@ -233,7 +233,7 @@ async function cmdInstall(args) {
   console.log(`${C.g('✓')} Addon installed to ${dst}`);
 
   const slots = Number(args.slots || cfg.slots || DEFAULT_SLOTS);
-  const bank = new SlotBank(addonsDir, { slots });
+  const bank = new SlotBank(addonsDir, { slots, interface: FLAVORS[flavorOf(wowDir)]?.interface });
   const had = bank.installedSlotCount();
   const bellsMissing = !fs.existsSync(bank.sigFile(CTL_LONG));
   const { made, pruned } = bank.install();
@@ -270,7 +270,8 @@ async function cmdInstall(args) {
   console.log('');
   await firstLaunch({
     restart: freshAddon || had < slots || bellsMissing,
-    running: !!(await findWowProcess()),
+    running: !!(await findWowProcess(flavorOf(wowDir))),
+    game: FLAVORS[flavorOf(wowDir)]?.name || 'World of Warcraft',
     waiting: !args['no-service'] && process.stdin.isTTY && process.stdout.isTTY,
     since: Date.now(),
   });
@@ -286,10 +287,10 @@ function readStatus() {
 
 // After installing: say exactly what to do in the game, then wait (Enter skips) until
 // the addon checks in, so you know it works before you go looking for it.
-async function firstLaunch({ restart, running, waiting, since }) {
+async function firstLaunch({ restart, running, game, waiting, since }) {
   let step;
-  if (restart) step = running ? 'Quit World of Warcraft completely and start it again, then log in to a character.' : 'Start World of Warcraft: Forever and log in to a character.';
-  else step = running ? 'Type /reload in game.' : 'Start World of Warcraft: Forever and log in to a character.';
+  if (restart) step = running ? 'Quit World of Warcraft completely and start it again, then log in to a character.' : `Start ${game} and log in to a character.`;
+  else step = running ? 'Type /reload in game.' : `Start ${game} and log in to a character.`;
   console.log(`${C.b('Next:')} ${step}`);
   if (restart && running) console.log(C.d('  The game only finds new addon files when it starts, so a /reload isn\'t enough this time.'));
 
@@ -473,7 +474,7 @@ async function cmdUninstall(args) {
   let wowDir = cfg.wowDir;
   if (!wowDir) {
     try {
-      wowDir = findWowInstalls().forever[0];
+      wowDir = findWowInstalls().gameDirs[0];
     } catch {}
   }
   const addonsDir = cfg.addonsDir || (wowDir && addonsDirOf(wowDir));

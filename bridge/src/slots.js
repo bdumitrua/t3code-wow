@@ -23,6 +23,8 @@ import path from 'node:path';
 import { luaAssignment } from './luaser.js';
 
 export const ADDON = 'T3Code';
+// WoW: Forever's TOC version, the default for slots. Other flavors pass their own
+// (FLAVORS in wow.js), so Forever's slot TOC and its fingerprint stay the same.
 export const INTERFACE = '16001';
 
 export function slotName(i) {
@@ -108,9 +110,10 @@ function setBell(file, rung) {
 }
 
 export class SlotBank {
-  constructor(addonsDir, { slots = 600 } = {}) {
+  constructor(addonsDir, { slots = 600, interface: iface = INTERFACE } = {}) {
     this.addonsDir = addonsDir;
     this.slots = slots;
+    this.interface = iface;
     this.sigDir = path.join(addonsDir, ADDON, 'Signals');
   }
 
@@ -138,7 +141,7 @@ export class SlotBank {
   // dependency on it listed every slot as an unknown addon. The game doesn't need it.
   slotToc() {
     return [
-      `## Interface: ${INTERFACE}`,
+      `## Interface: ${this.interface}`,
       '## Title: T3 Code live update slot',
       '## Notes: Carries live updates from the T3 Code bridge. Leave it enabled.',
       '## Author: Ryan Hughes',
