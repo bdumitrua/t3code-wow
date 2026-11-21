@@ -32,7 +32,7 @@ Measured on live Forever 1.60.1 clients (TOC 16001) by
 
 The addon runs in WoW: Forever (TOC 16001) and WoW Classic Era (TOC 11509). Battle.net installs each in its own folder under World of Warcraft (`_forever_`, `_classic_era_`), and `FLAVORS` in `wow.js` lists them. The installer prefers Forever when both are there, and `--wow` picks a folder. The bridge watches only the client of the version it was installed into: `Wow.exe` or `WowClassic.exe` under Wine and on Windows (or their `-arm64` builds), and the app bundle in that folder on macOS.
 
-The addon's TOC lists both interface versions (`## Interface: 16001, 11509`). A slot's TOC carries only the version of the game it was installed into, so Forever's slots keep the fingerprint described under "slots and signals" below. Classic Era's slots share a fingerprint of their own.
+The addon's TOC lists both interface versions (`## Interface: 16001, 11509`). A slot's TOC carries only the version of the game it was installed into, so Forever's slots keep the fingerprint described under "slots and signals" below. Classic Era's slots share a fingerprint of their own, which also matches nothing on CurseForge: a WowUp-CF rescan of Classic Era with all 1,200 slots installed showed one "T3 Code" entry and no slot.
 
 Classic Era runs the same modern client, and the strip, slots and bells work there as on Forever (checked in game on one Mac with Classic Era 1.15.9). Its interface lacks a few things Forever has, which the addon handles where it uses them:
 
