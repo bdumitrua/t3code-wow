@@ -1,4 +1,4 @@
-## Interface: 16001
+## Interface: 16001, 11509
 ## Title: T3 Code
 ## Group: T3Code
 ## Notes: Watch and run your T3 Code agent threads from inside the game. Needs the t3code-wow bridge running on this computer.
