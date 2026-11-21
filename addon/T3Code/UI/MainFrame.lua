@@ -109,6 +109,11 @@ local function CreateSideTab(f, index, icon, tooltip, page)
 		-- A flat square; the active page's tab carries the accent down its left edge.
 		tab = CreateFrame("Button", nil, f)
 		tab:SetSize(40, 40)
+		-- The tab stands outside the window, so it carries the window's ground (and its
+		-- transparency, see ApplyOpacity) under the glass; the glass alone barely shows.
+		tab.Ground = Theme.Solid(tab, theme.windowBg)
+		tab.Ground:SetDrawLayer("BACKGROUND", -1)
+		tab.Ground:SetAllPoints()
 		local bg = Theme.Solid(tab, theme.panelAlt)
 		bg:SetAllPoints()
 		-- No left rule: the tab grows out of the window's own border.
@@ -1125,6 +1130,9 @@ function M:ApplyOpacity()
 	local bg = theme.windowBg
 	f.ModernBg:SetColorTexture(bg[1], bg[2], bg[3], alpha)
 	if f.ModernBand then f.ModernBand:SetColorTexture(bg[1], bg[2], bg[3], alpha) end
+	for _, tab in ipairs(f.Tabs or {}) do
+		if tab.Ground then tab.Ground:SetColorTexture(bg[1], bg[2], bg[3], alpha) end
+	end
 end
 
 -- Switching designs rebuilds the window: each frame's look is chosen when it is
