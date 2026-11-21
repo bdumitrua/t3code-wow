@@ -1869,6 +1869,13 @@ do
 	check(ns.Settings.opacity:GetValue() == 6 and ns.Settings.opacity.Text:GetText() == "6%" and math.abs(ns.Main.frame.ModernBg._color[4] - 0.94) < 0.001, "transparency starts at the dusk ground")
 	ns.Settings.opacity:SetValue(40)
 	check(ns.db.settings.windowClear == 40 and ns.Settings.opacity.Text:GetText() == "40%" and math.abs(ns.Main.frame.ModernBg._color[4] - 0.6) < 0.001 and math.abs(ns.Main.frame.ModernBand._color[4] - 0.6) < 0.001, "the transparency slider lets the world through the modern window")
+	do
+		local grounded = #ns.Main.frame.Tabs == 3
+		for _, tab in ipairs(ns.Main.frame.Tabs) do
+			grounded = grounded and tab.Ground and math.abs(tab.Ground._color[4] - 0.6) < 0.001 and tab.Ground._color[1] == ns.Main.frame.ModernBg._color[1]
+		end
+		check(grounded, "the side tabs outside the window share its ground and transparency")
+	end
 	ns.Settings.opacity:SetValue(0)
 	check(ns.db.settings.windowClear == 0 and ns.Main.frame.ModernBg._color[4] == 1, "solid puts the window back")
 	ns.db.settings.windowClear = 250
