@@ -789,7 +789,7 @@ function UI.InitGroupHeader(button)
 		text = button:CreateFontString(nil, "ARTWORK", "T3ModernCaption")
 		text:SetPoint("LEFT", icon, "RIGHT", 8, 0)
 	else
-		text = button:CreateFontString(nil, "ARTWORK", "Game15Font_Shadow")
+		text = button:CreateFontString(nil, "ARTWORK", UI.Font("Game15Font_Shadow"))
 		text:SetPoint("CENTER", 6, 0)
 		text:SetTextColor(HIGHLIGHT_FONT_COLOR:GetRGB())
 	end

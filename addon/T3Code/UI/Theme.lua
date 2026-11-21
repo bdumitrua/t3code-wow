@@ -341,10 +341,19 @@ function Theme.UpdateFonts()
 	end
 end
 
--- The font for `template`: the template itself on the classic look, the kit's
--- stand-in on the modern one. A kit font's own name is accepted too.
+-- Game fonts that Classic Era doesn't have, and the closest one it does.
+local CLASSIC_FALLBACK = {
+	Game15Font_Shadow = "GameFontHighlightMedium",
+}
+
+-- The font for `template`: the template itself on the classic look (or its fallback
+-- where the client lacks it), the kit's stand-in on the modern one. A kit font's own
+-- name is accepted too.
 function Theme.Font(template)
-	if not Theme.Get() then return template end
+	if not Theme.Get() then
+		if _G[template] == nil and CLASSIC_FALLBACK[template] then return CLASSIC_FALLBACK[template] end
+		return template
+	end
 	if FONTS[template] then return template end
 	return STAND_IN[template] or "T3ModernBody"
 end
