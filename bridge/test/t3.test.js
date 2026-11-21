@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickModelSelection, modelChoices, chosenModelSelection, effortLevels, effortOf, withEffort } from '../src/t3.js';
+import http from 'node:http';
+import { T3Client, pickModelSelection, modelChoices, chosenModelSelection, effortLevels, effortOf, withEffort } from '../src/t3.js';
 
 const sel = (instanceId, model) => ({ instanceId, model, options: [] });
 const providers = [
@@ -110,3 +111,45 @@ test('reasoning levels: read from the model, set on a selection', () => {
   assert.throws(() => withEffort(sel, 'ultrathink', providers), /doesn't offer ultrathink/);
   assert.throws(() => withEffort({ instanceId: 'claude', model: 'plain' }, 'low', providers), /no reasoning levels/);
 });
+
+// A T3 Code server that issues websocket tickets only at `ticketPath`, and reports the
+// ticket the client then opens the socket with.
+async function ticketServer(ticketPath) {
+  const seen = [];
+  let opened;
+  const socketOpened = new Promise((resolve) => { opened = resolve; });
+  const server = http.createServer((req, res) => {
+    seen.push(`${req.method} ${req.url} ${req.headers.authorization}`);
+    if (req.method === 'POST' && req.url === ticketPath) {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ticket: 'tkt-1' }));
+    } else {
+      res.writeHead(404);
+      res.end();
+    }
+  });
+  server.on('upgrade', (req, socket) => {
+    opened(new URL(req.url, 'http://x').searchParams.get('wsTicket'));
+    socket.destroy();
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  return { origin: `http://127.0.0.1:${server.address().port}`, seen, socketOpened, close: () => server.close() };
+}
+
+for (const [server, ticketPath, requests] of [
+  ['Nightly', '/api/auth/websocket-ticket/rpc', ['POST /api/auth/websocket-ticket/rpc Bearer tok']],
+  ['Beta', '/api/auth/websocket-ticket', ['POST /api/auth/websocket-ticket/rpc Bearer tok', 'POST /api/auth/websocket-ticket Bearer tok']],
+]) {
+  test(`gets a websocket ticket from T3 Code ${server}`, async () => {
+    const srv = await ticketServer(ticketPath);
+    const client = new T3Client({ tokenProvider: async () => 'tok', originProvider: async () => srv.origin });
+    try {
+      client.connect();
+      assert.equal(await srv.socketOpened, 'tkt-1');
+      assert.deepEqual(srv.seen, requests);
+    } finally {
+      client.stop();
+      srv.close();
+    }
+  });
+}

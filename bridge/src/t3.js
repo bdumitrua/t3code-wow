@@ -225,10 +225,13 @@ export class T3Client extends EventEmitter {
       this.origin = await this.originProvider();
       const runtime = { origin: this.origin };
       const token = await this.tokenProvider();
-      const res = await fetch(new URL('/api/auth/websocket-ticket/rpc', runtime.origin), {
+      // Nightly issues tickets at …/rpc; T3 Code Beta (0.1.x) only at the older path.
+      const requestTicket = (p) => fetch(new URL(p, runtime.origin), {
         method: 'POST',
         headers: { authorization: `Bearer ${token}` },
       });
+      let res = await requestTicket('/api/auth/websocket-ticket/rpc');
+      if (res.status === 404) res = await requestTicket('/api/auth/websocket-ticket');
       if (res.status === 401) {
         this.emit('unauthorized');
         throw new Error(`${this.label}: T3 rejected the bridge token (401)`);
