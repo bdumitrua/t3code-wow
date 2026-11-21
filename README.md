@@ -114,7 +114,7 @@ This removes the addon and its update folders, its settings in the game, the bri
 - `/t3` opens or closes the window. You can also use the minimap button, the game menu (Esc), or hold both triggers and press Back on a controller.
 - `/t3 new` starts a thread, `/t3 usage` opens the usage tab, `/t3 settings` the settings.
 - `/t3 unlock` lets you drag the tracker section somewhere else; Settings → Reset tracker puts it back under your quests.
-- To see threads from another machine on your tailnet, run `t3code-wow env add <host>`. It finds the machine's T3 Code over Tailscale and creates a session for the bridge over SSH.
+- To see threads from another machine on your tailnet, run `t3code-wow env add <host>`. It finds the machine's T3 Code over Tailscale (served over HTTPS, or on T3 Code's own port 3773) and creates a session for the bridge over SSH. The machine can run the desktop app or a headless `t3 serve`.
 
 ## Commands
 

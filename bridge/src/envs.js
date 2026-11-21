@@ -10,6 +10,7 @@ import { CONFIG_DIR } from './auth.js';
 
 const ENV_DIR = path.join(CONFIG_DIR, 'envs');
 const RENEW_BEFORE_MS = 7 * 24 * 3600 * 1000;
+const T3_PORT = 3773;
 
 function run(cmd, args, timeout = 60000) {
   return new Promise((resolve, reject) => {
@@ -46,21 +47,30 @@ export async function discoverTailscale(host) {
     const dns = String(p.DNSName || '').replace(/\.$/, '');
     if (!dns) continue;
     if (String(p.HostName || '').toLowerCase() === want || dns.toLowerCase().split('.')[0] === want) {
-      urls.push(`https://${dns}/`);
+      // HTTPS when the machine serves T3 Code through `tailscale serve`, else T3 Code's
+      // own port, which Tailscale already encrypts.
+      urls.push(`https://${dns}/`, `http://${dns}:${T3_PORT}/`);
     }
   }
   return urls;
 }
 
+// A shell command for the remote machine that runs its `t3` CLI with `args`: the
+// desktop app's, or one on PATH, or else a headless server's (`t3 serve` installed as a
+// service keeps it under ~/.t3/runtime/versions/<version>/, the newest one running).
+export function remoteT3(args) {
+  return [
+    'T3=;',
+    'for t in "$HOME/.local/bin/t3" "$HOME/.t3/bin/t3" t3; do command -v "$t" >/dev/null 2>&1 && { T3=$t; break; }; done;',
+    '[ -n "$T3" ] || T3=$(ls -d "$HOME"/.t3/runtime/versions/*/t3 2>/dev/null | sort -V | tail -n 1);',
+    '[ -n "$T3" ] || { echo "t3 not found on this machine" >&2; exit 127; };',
+    `exec "$T3" ${args}`,
+  ].join(' ');
+}
+
 // Mint a session token on the remote machine with its own `t3` CLI.
 export async function mintRemote(sshHost, label = 'WoW bridge') {
-  const remote = [
-    'for t in "$HOME/.local/bin/t3" "$HOME/.t3/bin/t3" t3; do',
-    '  if command -v "$t" >/dev/null 2>&1; then',
-    `    exec "$t" auth session issue --scope orchestration:read --scope orchestration:operate --ttl 30d --label "${label}" --json;`,
-    '  fi;',
-    'done; echo "t3 not found on this machine" >&2; exit 127',
-  ].join(' ');
+  const remote = remoteT3(`auth session issue --scope orchestration:read --scope orchestration:operate --ttl 30d --label "${label}" --json`);
   const out = await run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', sshHost, remote], 120000);
   const start = out.indexOf('{');
   const json = JSON.parse(out.slice(start));
@@ -70,7 +80,7 @@ export async function mintRemote(sshHost, label = 'WoW bridge') {
 
 export async function revokeRemote(sshHost, sessionId) {
   if (!sessionId) return;
-  const remote = `for t in "$HOME/.local/bin/t3" "$HOME/.t3/bin/t3" t3; do command -v "$t" >/dev/null 2>&1 && exec "$t" auth session revoke ${sessionId}; done`;
+  const remote = remoteT3(`auth session revoke ${sessionId}`);
   await run('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', sshHost, remote], 60000);
 }
 
