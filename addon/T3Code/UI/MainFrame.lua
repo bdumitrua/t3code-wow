@@ -78,6 +78,30 @@ end
 ---------------------------------------------------------------------------
 -- Frame
 
+-- Classic Era has no LargeSideTabButtonTemplate: build the spellbook's side tab from
+-- its own textures instead.
+local function CreateSpellbookSideTab(f, icon, tooltip, page)
+	local tab = CreateFrame("Button", nil, f)
+	tab:SetSize(32, 32)
+	local bg = tab:CreateTexture(nil, "BACKGROUND")
+	bg:SetTexture("Interface\\SpellBook\\SpellBook-SkillLineTab")
+	bg:SetSize(64, 64)
+	bg:SetPoint("TOPLEFT", -3, 11)
+	tab.Icon = tab:CreateTexture(nil, "ARTWORK")
+	tab.Icon:SetAllPoints()
+	tab.Icon:SetTexture(icon)
+	tab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+	local checked = tab:CreateTexture(nil, "OVERLAY")
+	checked:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+	checked:SetBlendMode("ADD")
+	checked:SetAllPoints()
+	checked:Hide()
+	function tab:SetChecked(on) checked:SetShown(on and true or false) end
+	UI.Tooltip(tab, tooltip)
+	tab:SetScript("OnClick", function() M:ShowPage(page) end)
+	return tab
+end
+
 local function CreateSideTab(f, index, icon, tooltip, page)
 	local theme = Theme.Get()
 	local tab
@@ -109,14 +133,19 @@ local function CreateSideTab(f, index, icon, tooltip, page)
 		UI.Tooltip(tab, tooltip)
 		tab:SetScript("OnClick", function() M:ShowPage(page) end)
 	else
-		tab = CreateFrame("Frame", nil, f, "LargeSideTabButtonTemplate")
-		tab.Icon:SetTexture(icon)
-		tab:SetFillToInterior(true, 40)
-		tab.tooltipText = tooltip
-		tab:SetCustomOnMouseUpHandler(function(_, button, upInside)
-			if button == "LeftButton" and upInside then M:ShowPage(page) end
-		end)
-		tab:EnableMouse(true)
+		local ok
+		ok, tab = pcall(CreateFrame, "Frame", nil, f, "LargeSideTabButtonTemplate")
+		if ok then
+			tab.Icon:SetTexture(icon)
+			tab:SetFillToInterior(true, 40)
+			tab.tooltipText = tooltip
+			tab:SetCustomOnMouseUpHandler(function(_, button, upInside)
+				if button == "LeftButton" and upInside then M:ShowPage(page) end
+			end)
+			tab:EnableMouse(true)
+		else
+			tab = CreateSpellbookSideTab(f, icon, tooltip, page)
+		end
 	end
 	tab:SetPoint("TOPLEFT", f, "TOPRIGHT", 0, -36 - (index - 1) * 48)
 	tab.page = page

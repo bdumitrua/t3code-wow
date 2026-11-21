@@ -253,8 +253,15 @@ frame:SetScript("OnEvent", ns.Safe(function(_, event, arg1, ...)
 	end
 end))
 
-function ns:RegisterEvent(event, fn)
-	frame:RegisterEvent(event)
+-- `optional` marks an event some clients don't have, which errors on registering
+-- (Classic Era has no INPUT_DEVICE_INTERFACE_TRANSITION). It's skipped there rather
+-- than stop loading the file that asked; any other unknown event still errors.
+function ns:RegisterEvent(event, fn, optional)
+	if optional then
+		if not pcall(frame.RegisterEvent, frame, event) then return end
+	else
+		frame:RegisterEvent(event)
+	end
 	ns:On("event:" .. event, fn)
 end
 

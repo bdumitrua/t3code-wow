@@ -797,7 +797,7 @@ ns:RegisterEvent("INPUT_DEVICE_INTERFACE_TRANSITION", function()
 	end
 	ns.Main:ApplyScale()
 	ns.Transport:Touch()
-end)
+end, true)
 
 ---------------------------------------------------------------------------
 -- Launcher (kept in this file so /reload picks it up without a client restart)
