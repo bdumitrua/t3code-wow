@@ -125,6 +125,18 @@ const HEADER_CELLS = cellsForBytes(HEADER_BYTES);
 // The magic's first cell is fixed, so most positions are ruled out by one pixel.
 const FIRST_CELL = MAGIC[0] >> (8 - BITS);
 
+// The cells the magic fills completely, for a quick look along the first row before a
+// whole header is read.
+const MAGIC_CELLS = bytesToCells(MAGIC).slice(0, Math.floor((MAGIC.length * 8) / BITS));
+
+function magicAt(img, ox, oy, p) {
+  const y = oy + Math.floor(p / 2);
+  for (let k = 0; k < MAGIC_CELLS.length; k++) {
+    if (cellValueAt(img, ox + Math.floor(k * p + p / 2), y) !== MAGIC_CELLS[k]) return false;
+  }
+  return true;
+}
+
 function headerAt(img, geo) {
   const p = geo.pitch ?? geo.cell;
   if (cellValueAt(img, geo.ox + Math.floor(p / 2), geo.oy + Math.floor(p / 2)) !== FIRST_CELL) return null;
@@ -152,30 +164,90 @@ function centred(img, geo) {
   return { ...geo, ox: geo.ox + Math.floor((run(1, 0) - 1) / 2), oy: geo.oy + Math.floor((run(0, 1) - 1) / 2) };
 }
 
-export function locate(img, hint, { searchY = 0 } = {}) {
-  if (hint && headerAt(img, hint)) return hint;
+export function locate(img, hint, { searchY = 0, accept = () => true } = {}) {
+  // Scaled, blurred squares can spell the magic at a wrong spacing or offset, so a
+  // candidate only counts when `accept` (a whole frame that reads) agrees. Failing that,
+  // the first candidate is returned, so a frame that is really damaged still reports why.
+  let fallback = null;
+  const take = (geo) => {
+    if (accept(geo)) return true;
+    fallback ??= geo;
+    return false;
+  };
+  if (hint && headerAt(img, hint) && take(hint)) return hint;
   for (let cell = 2; cell <= 8; cell++) {
     const reach = STRIP_INSET + cell * 3;
     for (let oy = 0; oy <= reach + searchY; oy++) {
       for (let ox = 0; ox <= reach; ox++) {
         const geo = { ox, oy, cell };
-        if (headerAt(img, geo)) return centred(img, geo);
+        if (!headerAt(img, geo)) continue;
+        const g = centred(img, geo);
+        if (take(g)) return g;
       }
     }
   }
-  return null;
+  // A game that renders below the display's resolution is scaled up by the system
+  // (Classic Era fullscreen on a Mac: 2560x1600 drawn on a 2880x1800 panel), so its
+  // squares land a fraction of a pixel apart, 3.375 for 3. Search those spacings too,
+  // in sixteenths; the inset scales with them. That's about 90 spacings, so collect the
+  // pixels where the first square could be once (the magic's first cell, with its second
+  // within a square's width to the right), and only try offsets that put it there.
+  const MIN_PITCH = 2;
+  const MAX_PITCH = 8;
+  const reachOf = (pitch) => Math.ceil(pitch * (STRIP_INSET / 3 + 3));
+  const firsts = [];
+  const span = reachOf(MAX_PITCH) + Math.floor(MAX_PITCH / 2);
+  for (let y = 0; y <= span + searchY; y++) {
+    for (let x = 0; x <= span; x++) {
+      if (cellValueAt(img, x, y) !== FIRST_CELL) continue;
+      for (let d = 1; d <= MAX_PITCH + 1; d++) {
+        if (cellValueAt(img, x + d, y) === MAGIC_CELLS[1]) {
+          firsts.push(x, y);
+          break;
+        }
+      }
+    }
+  }
+  for (let pitch = MIN_PITCH; pitch <= MAX_PITCH && firsts.length; pitch += 1 / 16) {
+    if (Number.isInteger(pitch)) continue;
+    const cell = Math.round(pitch);
+    const reach = reachOf(pitch);
+    const half = Math.floor(pitch / 2);
+    for (let i = 0; i < firsts.length; i += 2) {
+      const ox = firsts[i] - half;
+      const oy = firsts[i + 1] - half;
+      if (ox < 0 || oy < 0 || ox > reach || oy > reach + searchY) continue;
+      if (!magicAt(img, ox, oy, pitch)) continue;
+      const geo = { ox, oy, cell, pitch };
+      if (!headerAt(img, geo)) continue;
+      const g = centred(img, geo);
+      if (take(g)) return g;
+    }
+  }
+  return fallback;
 }
 
 // Returns { version, seq, payload (Buffer), geo } or { error, geo } or null when no strip is visible.
 export function decodeImage(img, hint, opts) {
-  const geo = locate(img, hint, opts);
+  const read = (geo) => {
+    const head = headerAt(img, geo);
+    if (!head) return null;
+    if (head.len > MAX_PAYLOAD) return { error: 'bad length', geo };
+    const total = HEADER_BYTES + head.len + 2;
+    const out = readFrame(img, geo, head, total);
+    return out.error === 'checksum mismatch' ? refinePitch(img, geo, head, total) || out : out;
+  };
+  let accepted = null;
+  const geo = locate(img, hint, {
+    ...opts,
+    accept: (g) => {
+      const out = read(g);
+      if (out && !out.error) accepted = out;
+      return !!accepted;
+    },
+  });
   if (!geo) return null;
-  const head = headerAt(img, geo);
-  if (head.len > MAX_PAYLOAD) return { error: 'bad length', geo };
-  const total = HEADER_BYTES + head.len + 2;
-  let out = readFrame(img, geo, head, total);
-  if (out.error === 'checksum mismatch') out = refinePitch(img, geo, head, total) || out;
-  return out;
+  return accepted || read(geo);
 }
 
 function readFrame(img, geo, head, total) {
@@ -188,11 +260,12 @@ function readFrame(img, geo, head, total) {
 }
 
 // The squares drift when the cell spacing isn't a whole number of pixels. Try spacings
-// within 2% of the whole-pixel size and keep the middle of the range that reads
+// within 2% of the found spacing and keep the middle of the range that reads
 // cleanly, so the next frame (and longer ones) have the most margin either side.
 function refinePitch(img, geo, head, total) {
   const ok = [];
-  for (let p = geo.cell * 0.98; p <= geo.cell * 1.02; p += geo.cell / 1000) {
+  const base = geo.pitch ?? geo.cell;
+  for (let p = base * 0.98; p <= base * 1.02; p += base / 1000) {
     const g = { ox: geo.ox, oy: geo.oy, cell: geo.cell, pitch: p };
     if (!headerAt(img, g)) continue;
     const out = readFrame(img, g, head, total);
