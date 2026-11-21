@@ -1,9 +1,9 @@
 # T3 Code for World of Warcraft
 
-Watch and run your [T3 Code](https://t3.codes) agent threads without leaving the game. It's a native addon for World of Warcraft: Forever, built from Blizzard's own UI templates so it looks and plays like the rest of the interface, plus a small bridge that connects it to T3 Code.
+Watch and run your [T3 Code](https://t3.codes) agent threads without leaving the game. It's a native addon for World of Warcraft: Forever (and WoW Classic Era), built from Blizzard's own UI templates so it looks and plays like the rest of the interface, plus a small bridge that connects it to T3 Code.
 
 > [!WARNING]
-> **Early release, still experimental.** It's built for and tested on one setup: **Omarchy 4.5.0**, **T3 Code Nightly** (0.1.7-nightly) and **World of Warcraft: Forever** (1.60.x) under Proton. **macOS** with the native client and **CachyOS** with KDE Plasma are new and less tested (see [macOS](#macos) and [CachyOS and KDE Plasma](#cachyos-and-kde-plasma)). **Windows** 10 and 11 are newer still and the least tested (see [Windows](#windows)). Other setups may work but aren't supported yet. T3 Code Nightly's API changes often, so a T3 update can break things until this catches up. Expect rough edges, and please [report them](https://github.com/ryanrhughes/t3code-wow/issues).
+> **Early release, still experimental.** It's built for and tested on one setup: **Omarchy 4.5.0**, **T3 Code Nightly** (0.1.7-nightly) and **World of Warcraft: Forever** (1.60.x) under Proton. **macOS** with the native client and **CachyOS** with KDE Plasma are new and less tested (see [macOS](#macos) and [CachyOS and KDE Plasma](#cachyos-and-kde-plasma)). **Windows** 10 and 11 are newer still and the least tested (see [Windows](#windows)). **WoW Classic Era** is new too, and has been checked in game on one Mac only (see [Classic Era](#classic-era)). Other setups may work but aren't supported yet. T3 Code Nightly's API changes often, so a T3 update can break things until this catches up. Expect rough edges, and please [report them](https://github.com/ryanrhughes/t3code-wow/issues).
 
 ## What it does
 
@@ -21,7 +21,7 @@ Watch and run your [T3 Code](https://t3.codes) agent threads without leaving the
 
 - **Omarchy 4.5.0** (Hyprland), **CachyOS** with KDE Plasma (see [CachyOS and KDE Plasma](#cachyos-and-kde-plasma)), **macOS** (see [macOS](#macos)), or **Windows** 10 or 11 (see [Windows](#windows)). On Omarchy the bridge reads the game window with Hyprland's screen capture, and dictation and usage come from Omarchy's own tools.
 - **T3 Code Nightly**, installed and running. Its `t3` command gives the bridge a login.
-- **World of Warcraft: Forever**, installed with Battle.net: Omarchy's Battle.net (Proton), Battle.net in Faugus Launcher, Lutris or Steam on CachyOS, or the native Mac or Windows app.
+- **World of Warcraft: Forever** or **WoW Classic Era** (see [Classic Era](#classic-era)), installed with Battle.net: Omarchy's Battle.net (Proton), Battle.net in Faugus Launcher, Lutris or Steam on CachyOS, or the native Mac or Windows app.
 - **Node.js 22** or newer.
 - **Game sound on.** The addon learns about new updates through silent sounds; with sound off it falls back to slower polling.
 
@@ -31,7 +31,7 @@ Watch and run your [T3 Code](https://t3.codes) agent threads without leaving the
 curl -fsSL https://raw.githubusercontent.com/ryanrhughes/t3code-wow/main/install.sh | bash
 ```
 
-It finds World of Warcraft: Forever in Omarchy's Battle.net, in the prefixes Faugus Launcher and Lutris recorded, or wherever Battle.net installed it (for anything unusual, add `bash -s -- --wow "/path/to/World of Warcraft"`). It installs the addon into the game, gives the bridge a T3 Code session limited to reading and running threads, and starts the bridge as the `t3code-wow` user service.
+It finds World of Warcraft: Forever (or Classic Era) in Omarchy's Battle.net, in the prefixes Faugus Launcher and Lutris recorded, or wherever Battle.net installed it (for anything unusual, add `bash -s -- --wow "/path/to/World of Warcraft"`). It installs the addon into the game, gives the bridge a T3 Code session limited to reading and running threads, and starts the bridge as the `t3code-wow` user service.
 
 Then it tells you what to do in the game and waits until the game checks in. The first time, **fully quit and restart World of Warcraft**: the game only finds new addon folders when it starts. After that, updates only need a `/reload`.
 
@@ -89,6 +89,17 @@ The same install command works on CachyOS (or another Arch system) running KDE P
 - **Screenshots** come out as JPEG when ImageMagick is installed (`sudo pacman -S imagemagick`), and as PNG otherwise.
 - **Speech** needs a desktop voice: `sudo pacman -S speech-dispatcher espeak-ng`. **Dictation** uses `voxtype` with `pw-record` if you have them. The Usage tab shows what T3 Code reports.
 - Other desktops on CachyOS: Hyprland works like Omarchy (install `grim`), and an X11 session prefers `maim` for fast region capture, with ImageMagick's `import` as a fallback. GNOME isn't supported, since it doesn't let other programs capture the screen without asking every time.
+
+### Classic Era
+
+The addon also runs in WoW Classic Era (1.15.x), from the same install command. The installer looks for Forever first; without it, it uses Classic Era. To use Classic Era when both are installed, point the installer at its folder: `--wow "/path/to/World of Warcraft/_classic_era_"` (with the one-line install, `bash -s -- --wow "…"`). The bridge then only watches the Classic Era client.
+
+It has been checked in game on one Mac with Classic Era 1.15.9. Linux and Windows find and watch the Classic Era client the same way, but haven't been checked in game, and neither has a controller.
+
+Classic Era lacks some of Forever's interface, so a few things differ:
+
+- **Tracker.** Classic Era has no objective tracker for the T3 Code section to follow, so it starts at its own spot on the screen. Move it with `/t3 unlock`.
+- **Classic look.** The side tabs are drawn like the spellbook's, since Classic Era has no side tab template, and the thread list's group headers use a slightly different font.
 
 ### Uninstall
 

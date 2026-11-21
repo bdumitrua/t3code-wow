@@ -4,7 +4,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for how changes are reviewed, and [docs/
 
 ## Layout
 
-- `addon/T3Code/`: the WoW: Forever addon (Lua 5.1, Blizzard UI templates). `Core/` holds the link to the bridge (`Transport.lua`, `Codec.lua`, `Crypto.lua`) and state; `UI/` holds the window, tracker, notices, controller support and minimap button.
+- `addon/T3Code/`: the addon for WoW: Forever and Classic Era (Lua 5.1, Blizzard UI templates). `Core/` holds the link to the bridge (`Transport.lua`, `Codec.lua`, `Crypto.lua`) and state; `UI/` holds the window, tracker, notices, controller support and minimap button.
 - `bridge/`: the Node bridge (`t3code-wow`), with no npm dependencies. `src/bridge.js` handles commands, pacing and snapshots, `src/t3.js` and `src/fleet.js` talk to T3 Code, `src/slots.js` writes slots and bells, `src/capture.js` reads the strip, `src/wow.js` finds the game.
 - `tools/`: the WoW API stub and headless addon tests.
 
@@ -13,6 +13,10 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for how changes are reviewed, and [docs/
 Linux (Omarchy, and CachyOS with KDE Plasma, the game under Proton) and macOS (the native client) are supported. Keep platform differences inside the module that owns them: `wow.js` (install folders and the running client: Wine prefixes, including those Faugus Launcher and Lutris record, and `/proc` on Linux; Battle.net's records and `ps` on macOS), `capture.js` (`grim` on Hyprland, KWin's D-Bus API through `busctl` on KDE Plasma, `maim` on X11, or ImageMagick's `import` without it; CoreGraphics' window list through JXA and `screencapture` on macOS, which needs the Screen Recording permission), `voice.js` (`spd-say`/`espeak-ng`, or `say`), `envs.js` (the Tailscale CLI inside `Tailscale.app` on macOS) and the service in `bin/t3code-wow.js` (a systemd user unit or a launchd agent). On macOS, use only tools that ship with the system: nothing to compile or install. On KDE Plasma, likewise use only what Plasma and systemd ship.
 
 Windows 10 and 11 (the native client) is new and the least tested: the link has been checked in game on one Windows 11 PC only (see "Windows notes" in docs/ARCHITECTURE.md). Its differences sit in the same owning modules: `wow.js` (Battle.net's records and the running `Wow.exe`), `capture.js` (the `windows` backend), `auth.js` (T3 Code's `t3.cmd`, run through `cmd.exe`), `voice.js` (no desktop voice or dictation yet) and the service (a logon task). Two modules hold what only Windows needs: `windows.js` with `windows-helper.cs` (one long-lived PowerShell helper for the game window, its pixels and the list of running programs) and `windows-service.js` (the logon task and the supervisor it runs). On Windows, use only what ships with Windows 10 and 11, with nothing to compile or install. Keep `windows-helper.cs` to C# 5, because the compiler that ships with Windows stops there. Never start a bridge while another may still be running, because two would run the same command twice. `windows-service.js` is where that is checked.
+
+## Game versions
+
+The addon runs in WoW: Forever and WoW Classic Era. The game versions are listed once, in `FLAVORS` in `wow.js` (the folder under World of Warcraft, a name and the TOC interface version). The addon's TOC lists both interface versions. Slot TOCs carry only the version of the game they're installed into, so Forever's slots keep their fingerprint. Classic Era lacks some of Forever's templates, events and fonts: check that an API exists before relying on it there, fall back to what Classic Era has, and keep Forever on its own path. `T3_STUB_FLAVOR=classic_era` makes the stub error on what Classic Era lacks.
 
 ## Measured limits of the game client
 
@@ -46,7 +50,7 @@ The bridge uses T3 Code's own WebSocket RPC, which changes between nightlies. Wh
 Run what covers your change, once, and read the output:
 
 - `cd bridge && npm test` for anything in `bridge/`, including protocol and crypto. The crypto tests run the addon's Lua under both `lua5.1` (with `tools/bitstub.lua`, unsigned like WoW) and `luajit` (signed), and must agree with Node.
-- `lua5.1 tools/smoke.lua …` and `luajit tools/smoke.lua …` (see CONTRIBUTING.md) for anything in `addon/`.
+- `lua5.1 tools/smoke.lua …` and `luajit tools/smoke.lua …` (see CONTRIBUTING.md) for anything in `addon/`, and the same with `T3_STUB_FLAVOR=classic_era` for Classic Era.
 - Bridge tests must pass a temporary `stateDir`; never let a test touch `~/.local/state/t3code-wow`.
 - The bridge suite must pass on Windows too. There, the tests that need `lua5.1` skip when it isn't installed, and a test that registers a logon task uses a throwaway name, never `t3code-wow`.
 - The stub's widget methods come from the client's API documentation. If a real method is missing, add it to the stub; don't call methods the client doesn't have.

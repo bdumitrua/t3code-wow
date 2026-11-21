@@ -28,6 +28,21 @@ Measured on live Forever 1.60.1 clients (TOC 16001) by
 4. SavedVariables are only written on `/reload` or logout, and `ReloadUI()` needs a
    key press or click.
 
+## Game versions
+
+The addon runs in WoW: Forever (TOC 16001) and WoW Classic Era (TOC 11509). Battle.net installs each in its own folder under World of Warcraft (`_forever_`, `_classic_era_`), and `FLAVORS` in `wow.js` lists them. The installer prefers Forever when both are there, and `--wow` picks a folder. The bridge watches only the client of the version it was installed into: `Wow.exe` or `WowClassic.exe` under Wine and on Windows (or their `-arm64` builds), and the app bundle in that folder on macOS.
+
+The addon's TOC lists both interface versions (`## Interface: 16001, 11509`). A slot's TOC carries only the version of the game it was installed into, so Forever's slots keep the fingerprint described under "slots and signals" below. Classic Era's slots share a fingerprint of their own.
+
+Classic Era runs the same modern client, and the strip, slots and bells work there as on Forever (checked in game on one Mac with Classic Era 1.15.9). Its interface lacks a few things Forever has, which the addon handles where it uses them:
+
+- **`LargeSideTabButtonTemplate`.** Creating a frame from a template the client lacks errors, so the classic look's side tabs fall back to buttons drawn with the spellbook's tab textures.
+- **`INPUT_DEVICE_INTERFACE_TRANSITION`.** Registering an unknown event errors too, so `ns:RegisterEvent` can mark an event optional and skip it where it's missing. Other unknown events still error.
+- **`Game15Font_Shadow`** and the objective tracker's fonts. `Theme.Font` falls back to the closest font Classic Era has.
+- **The objective tracker.** Classic Era has no `ObjectiveTrackerFrame`, so the T3 Code section stands on its own spot on the screen until it's dragged.
+
+`T3_STUB_FLAVOR=classic_era` runs the headless smoke test against a stub without these, which errors where the client would.
+
 ## Game → bridge: the strip
 
 `Codec.lua` and `codec.js` share one frame format:
